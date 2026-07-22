@@ -324,19 +324,68 @@ install_erdtree() {
 
   if check_command erd; then
     success "erdtree already installed: $(erd --version)"
-    return
-  fi
-
-  if ! check_command cargo; then
-    warning "Cargo not available, skipping erdtree installation"
-    return
-  fi
-
-  if cargo install erdtree &>>"$LOG_FILE"; then
-    success "erdtree installed"
   else
-    warning "Failed to install erdtree"
+    if ! check_command cargo; then
+      warning "Cargo not available, skipping erdtree installation"
+      return
+    fi
+
+    if cargo install erdtree &>>"$LOG_FILE"; then
+      success "erdtree installed"
+    else
+      warning "Failed to install erdtree"
+    fi
   fi
+
+  configure_erdtree
+}
+
+# -------------------------------#
+# ERDTREE CONFIGURATION #
+# -------------------------------#
+
+configure_erdtree() {
+  local config_dir="$HOME/.config/erdtree"
+  local config_file="$config_dir/.erdtree.toml"
+
+  progress "Configuring erdtree..."
+
+  mkdir -p "$config_dir"
+
+  cat > "$config_file" << 'EOF'
+icons = true
+human = true
+hidden = true
+level = 2
+EOF
+
+  success "erdtree configuration created at $config_file"
+}
+
+# -------------------------------#
+# AWS CLI #
+# -------------------------------#
+
+install_aws_cli() {
+  progress "Installing AWS CLI..."
+
+  if check_command aws; then
+    success "AWS CLI already installed: $(aws --version)"
+    return
+  fi
+
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+
+  if curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "$tmp_dir/awscliv2.zip" &&
+    unzip -q "$tmp_dir/awscliv2.zip" -d "$tmp_dir" &>>"$LOG_FILE" &&
+    sudo_log "$tmp_dir/aws/install"; then
+    success "AWS CLI installed: $(aws --version)"
+  else
+    warning "Failed to install AWS CLI"
+  fi
+
+  rm -rf "$tmp_dir"
 }
 
 # -------------------------------#
@@ -709,6 +758,7 @@ main() {
   install_essentials
   install_dev_tools
   install_erdtree
+  install_aws_cli
   install_java
   setup_oh_my_zsh
   create_zshrc
@@ -726,6 +776,7 @@ main() {
   info "  Node.js: LTS (via fnm)"
   info "  Java: LTS (via SDKMAN)"
   info "  Rust + erdtree (via cargo)"
+  info "  AWS CLI v2"
   info "Please restart your terminal (WSL) or session (Linux) to apply changes"
   info "Log file: $LOG_FILE"
 }
